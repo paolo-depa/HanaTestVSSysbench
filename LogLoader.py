@@ -5,7 +5,11 @@ import os
 
 # Initialize the Elasticsearch client
 elastic_user = os.getenv('ELASTIC_USER', 'elastic')
-elastic_password = os.getenv('ELASTIC_PASSWORD', '')
+elastic_password = os.getenv('ELASTIC_PASSWORD')
+if not elastic_password:
+    print("Error: ELASTIC_PASSWORD environment variable is not set. Please set it and try again.")
+    sys.exit(1)
+
 es = Elasticsearch(
     [{'host': 'localhost', 'port': 9200, 'scheme': 'https'}],
     basic_auth=(elastic_user, elastic_password),
