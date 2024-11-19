@@ -3,6 +3,34 @@ import os
 import re
 import json
 
+output_file='parsed_logs.json'
+
+def convert_numeric_values(data):
+    if isinstance(data, dict):
+        for key, value in data.items():
+            if isinstance(value, str):
+                if value.isdigit():
+                    data[key] = int(value)
+                else:
+                    try:
+                        data[key] = float(value)
+                    except ValueError:
+                        pass
+            elif isinstance(value, (dict, list)):
+                convert_numeric_values(value)
+    elif isinstance(data, list):
+        for i in range(len(data)):
+            if isinstance(data[i], str):
+                if data[i].isdigit():
+                    data[i] = int(data[i])
+                else:
+                    try:
+                        data[i] = float(data[i])
+                    except ValueError:
+                        pass
+            elif isinstance(data[i], (dict, list)):
+                convert_numeric_values(data[i])
+
 def print_section_content(section):
     print("--- Section Content: ---")
     print(section)
@@ -71,6 +99,7 @@ def parse_sysbench_memory_test(section):
                 sysbench_data[f"sysbench_{operation}_{i}"]["threads_fairness"] = match.groupdict()
 
     # Convert sysbench data to JSON
+    convert_numeric_values(sysbench_data)
     jsonized = json.dumps(sysbench_data, indent=4)
     return jsonized
     
@@ -88,6 +117,7 @@ def parse_vmstat(section):
             vmstat_data[key] = value
 
     # Convert vmstat data to JSON
+    convert_numeric_values(vmstat_data)
     jsonized = json.dumps(vmstat_data, indent=4)
     return jsonized
 
@@ -105,6 +135,7 @@ def parse_meminfo(section):
             meminfo_data[key] = value
 
     # Convert meminfo data to JSON
+    convert_numeric_values(meminfo_data)
     jsonized = json.dumps(meminfo_data, indent=4)
     return jsonized
 
@@ -147,6 +178,7 @@ def parse_top(section):
                 top_data[key] = int(top_data[key])
 
     # Convert top data to JSON
+    convert_numeric_values(top_data)
     jsonized = json.dumps(top_data, indent=4)
     return jsonized
 
@@ -209,6 +241,8 @@ if __name__ == "__main__":
         print("Please provide at least one log file path.")
         sys.exit(1)
 
+    logarray = '[]'
+
     for log_file_path in sys.argv[1:]:
         if not os.path.isfile(log_file_path):
             print(f"File not found: {log_file_path}")
@@ -220,11 +254,15 @@ if __name__ == "__main__":
             
         try:
             jsonized = parse_log_file(log_file_path)
-            json_file_path = os.path.splitext(log_file_path)[0] + '.json'
-            with open(json_file_path, 'w') as json_file:
-                json_file.write(jsonized)
-            print(f"JSON output written to: {json_file_path}")
+            logarray_dict = json.loads(logarray)
+            logarray_dict.append(json.loads(jsonized))
+            logarray = json.dumps(logarray_dict, indent=4)
+            print(f"Successfully parsed: {log_file_path}")
             
         except Exception as e:
             print(e)
             continue
+
+    with open(output_file, 'w') as output:
+        output.write(logarray)
+        print(f"Output written to {output_file}")
